@@ -15,7 +15,8 @@ from denoise import (
 args = sys.argv[1:]
 SHOW_PLOTS = "--no-show" not in args
 image_args = [a for a in args if not a.startswith("--")]
-IMAGE_PATH = image_args[0] if image_args else "images/lena.png"
+IMAGE_PATH = image_args[0] if image_args else "images/mountain.png"
+image_name = os.path.splitext(os.path.basename(IMAGE_PATH))[0]
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -37,17 +38,18 @@ results_g = {
     "Bilateral filter": bilateral_denoise(noisy_g, sigma_s=5, sigma_r=30),
     "Fourier LP": fourier_denoise(noisy_g, cutoff_ratio=0.15),
     "Wavelet (soft)": wavelet_denoise(noisy_g, wavelet='db4', level=3, mode='soft'),
+    "Median filter": median_denoise(noisy_g, size=3),
 }
 
 evaluate_all(img, noisy_g, results_g)
-save_images(noisy_g, results_g, "gaussian", OUTPUT_DIR)
+save_images(noisy_g, results_g, "gaussian", OUTPUT_DIR, image_name)
 plot_results(img, noisy_g, results_g, "Gaussian σ=30",
-             save_path=f"{OUTPUT_DIR}/gaussian_noise_results.png", show=SHOW_PLOTS)
+             save_path=f"{OUTPUT_DIR}/{image_name}_gaussian_noise_results.png", show=SHOW_PLOTS)
 
 plot_fourier_spectrum(img, noisy_g, results_g["Fourier LP"],
-                      save_path=f"{OUTPUT_DIR}/fourier_spectrum.png", show=SHOW_PLOTS)
+                      save_path=f"{OUTPUT_DIR}/{image_name}_fourier_spectrum.png", show=SHOW_PLOTS)
 
-plot_wavelet_coefficients(img, save_path=f"{OUTPUT_DIR}/wavelet_coefficients.png", show=SHOW_PLOTS)
+plot_wavelet_coefficients(img, save_path=f"{OUTPUT_DIR}/{image_name}_wavelet_coefficients.png", show=SHOW_PLOTS)
 
 # ── Salt-and-pepper noise experiment ─────────────────────────────────────────
 
@@ -56,15 +58,16 @@ noisy_sp = add_salt_pepper_noise(img, prob=SP_PROB)
 
 results_sp = {
     "Gaussian filter": gaussian_denoise(noisy_sp, sigma=2.0),
-    "Median filter": median_denoise(noisy_sp, size=3),
     "Bilateral filter": bilateral_denoise(noisy_sp, sigma_s=5, sigma_r=50),
+    "Fourier LP": fourier_denoise(noisy_sp, cutoff_ratio=0.15),
     "Wavelet (soft)": wavelet_denoise(noisy_sp, wavelet='db4', level=3, mode='soft'),
+    "Median filter": median_denoise(noisy_sp, size=3),
 }
 
 evaluate_all(img, noisy_sp, results_sp)
-save_images(noisy_sp, results_sp, "saltpepper", OUTPUT_DIR)
+save_images(noisy_sp, results_sp, "saltpepper", OUTPUT_DIR, image_name)
 plot_results(img, noisy_sp, results_sp, f"Salt & Pepper p={SP_PROB}",
-             save_path=f"{OUTPUT_DIR}/saltpepper_noise_results.png", show=SHOW_PLOTS)
+            save_path=f"{OUTPUT_DIR}/{image_name}_saltpepper_noise_results.png", show=SHOW_PLOTS)
 
 # ── Parameter sweep: bilateral sigma_r ────────────────────────────────────────
 

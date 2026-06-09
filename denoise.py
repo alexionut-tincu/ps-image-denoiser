@@ -89,7 +89,7 @@ def _bilateral_channel(channel, sigma_s, sigma_r, size, pad):
             out[i, j] = (weights * patch).sum() / weights.sum()
     return out
 
-# ── Method 3: Fourier low-pass filter ───────────────────────────────────────
+# ── Method 3: Fourier low-pass filter ────────────────────────────────────────
 
 def fourier_denoise(img, cutoff_ratio=0.1):
     if img.ndim == 3:
@@ -130,7 +130,7 @@ def _wavelet_channel(channel, wavelet, level, mode):
     result = result[:channel.shape[0], :channel.shape[1]]
     return np.clip(result, 0, 255)
 
-# ── Method 5: Median filter (for salt-and-pepper) ───────────────────────────
+# ── Method 5: Median filter ──────────────────────────────────────────────────
 
 def median_denoise(img, size=3):
     if img.ndim == 3:
@@ -163,20 +163,23 @@ def evaluate_all(original, noisy, results):
 
 # ── Visualization ────────────────────────────────────────────────────────────
 
-def save_images(noisy, results, noise_label, output_dir):
+def save_images(noisy, results, noise_label, output_dir, image_name="image"):
+    os.makedirs(output_dir, exist_ok=True)
     def _save(arr, name):
         path = os.path.join(output_dir, name)
         Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)).save(path)
         print(f"Saved: {path}")
-    _save(noisy, f"noisy_{noise_label}.png")
+    _save(noisy, f"{image_name}_noisy_{noise_label}.png")
     for method_name, denoised in results.items():
-        filename = f"denoised_{noise_label}_{method_name.lower().replace(' ', '_')}.png"
+        filename = f"{image_name}_denoised_{noise_label}_{method_name.lower().replace(' ', '_')}.png"
         _save(denoised, filename)
 
 def plot_results(original, noisy, results, noise_type, save_path=None, show=True):
-    n = len(results) + 2
-    fig = plt.figure(figsize=(4 * n, 4))
-    gs = gridspec.GridSpec(1, n, figure=fig)
+    items = [("Original", None), (f"Noisy ({noise_type})", None)] + list(results.items())
+    n = len(items)
+    cols = (n + 1) // 2
+    fig = plt.figure(figsize=(4 * cols, 8))
+    gs = gridspec.GridSpec(2, cols, figure=fig)
 
     def show(ax, img, title, psnr_val=None):
         ax.imshow(img.astype(np.uint8) if img.ndim == 3 else img.astype(np.uint8), cmap='gray')
@@ -187,15 +190,22 @@ def plot_results(original, noisy, results, noise_type, save_path=None, show=True
     orig_gray = np.mean(original, axis=2) if original.ndim == 3 else original
     noisy_gray = np.mean(noisy, axis=2) if noisy.ndim == 3 else noisy
 
-    show(fig.add_subplot(gs[0]), original, "Original")
-    show(fig.add_subplot(gs[1]), noisy, f"Noisy ({noise_type})", psnr(orig_gray, noisy_gray))
-
-    for idx, (name, denoised) in enumerate(results.items()):
-        d_gray = np.mean(denoised, axis=2) if denoised.ndim == 3 else denoised
-        show(fig.add_subplot(gs[idx + 2]), denoised, name, psnr(orig_gray, d_gray))
+    for idx, (title, img_data) in enumerate(items):
+        row, col = divmod(idx, cols)
+        ax = fig.add_subplot(gs[row, col])
+        if img_data is None:
+            ref = original if title == "Original" else noisy
+            p = None if title == "Original" else psnr(orig_gray, noisy_gray)
+            show(ax, ref, title, p)
+        else:
+            d_gray = np.mean(img_data, axis=2) if img_data.ndim == 3 else img_data
+            show(ax, img_data, title, psnr(orig_gray, d_gray))
 
     plt.tight_layout()
     if save_path:
+        dirpath = os.path.dirname(save_path)
+        if dirpath:
+            os.makedirs(dirpath, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Saved: {save_path}")
     if show:
@@ -215,6 +225,9 @@ def plot_fourier_spectrum(img, noisy, denoised_fourier, save_path=None, show=Tru
         ax.axis('off')
     plt.tight_layout()
     if save_path:
+        dirpath = os.path.dirname(save_path)
+        if dirpath:
+            os.makedirs(dirpath, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Saved: {save_path}")
     if show:
@@ -232,6 +245,9 @@ def plot_wavelet_coefficients(img, save_path=None, show=True):
     ax.axis('off')
     plt.tight_layout()
     if save_path:
+        dirpath = os.path.dirname(save_path)
+        if dirpath:
+            os.makedirs(dirpath, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Saved: {save_path}")
     if show:
